@@ -1,0 +1,3 @@
+nick="Husevyk",pw="123",exp="50",games="58",wins="1"
+nick="Sokolov",pw="123",exp="200000",games="58",wins="57"
+
