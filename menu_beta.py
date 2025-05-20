@@ -4,6 +4,7 @@ from tkinter import messagebox
 import pygame
 import subprocess
 import sys
+from PIL import Image, ImageTk
 pygame.mixer.init()
 pygame.mixer.music.load('project/menu_mus_1.mp3')
 pygame.mixer.music.play(loops=-1)
@@ -43,14 +44,12 @@ class BattleshipApp(tk.Tk):
         super().__init__()
         self.title("Морський бій")
         self.attributes('-fullscreen', True)
-        self.current_user = None
-
         self.frames = {}
         for F in (MainMenu, SettingsFrame, AuthFrame, StatsFrame,GeneralMenu,PickGeneralMenu):
             frame = F(self)
             self.frames[F] = frame
             frame.place(relwidth=1, relheight=1)
-
+        self.current_user = None
         self.show_frame(MainMenu)
     
     def show_frame(self, frame_class):
@@ -62,25 +61,78 @@ class BattleshipApp(tk.Tk):
 class GeneralMenu(tk.Frame):
     def __init__(self,master):
         super().__init__(master)
+        self.app = master
         container=tk.Frame(self)
-        container.pack(pady=40)
-        tk.Label(self, text="Оберіть режим гри", font=('Arial', 18)).pack(pady=50)
-        tk.Button(container, text="Звичайний режим",
-                  command=self.start_game).pack(fill='x', padx=40, pady=30)
-        tk.Button(container, text="Режим генералів",
-                  command=lambda: master.show_frame(PickGeneralMenu)).pack(fill='x', padx=40, pady=30)
-        
+        container.pack(expand=True)
+        label= tk.Label(container, text="Оберіть режим гри", font=('Arial', 18))
+        label.grid(row=0, column=0,columnspan=2,pady=(0,35))
+        buton_vanil=tk.Button(container, text="Звичайний режим",
+                  command=self.start_game)
+        buton_vanil.grid(row=1, column=0,pady=(0,10), padx=(0,30))
+        buton_general=tk.Button(container, text="Режим генералів",
+                  command=lambda: master.show_frame(PickGeneralMenu))
+        buton_general.grid(row=1, column=1,pady=(0,10), padx=(0,30))
+
     def start_game(self):
         game_script = r'D:\Husevukidezki\project\project.py'
-        subprocess.Popen([sys.executable, game_script])
+        if self.app.current_user:
+            nick = self.app.current_user['nick']
+        else:
+            nick = ''
+        subprocess.Popen([sys.executable, game_script,"vanilla",nick])
         self.master.destroy()
 
 class PickGeneralMenu(tk.Frame):
     def __init__(self,master):
         super().__init__(master)
-        container=tk.Frame(self)
-        container.pack(pady=40)
-        tk.Label(self,text="Обери генерала")
+        self.rowconfigure(0,weight=1)
+        self.columnconfigure(0,weight=1)
+        self.columnconfigure(1,weight=1)
+        self.gen=generals
+        self.index=0
+        left = tk.Frame(self)
+        left.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
+        left.columnconfigure(0, weight=1)
+        right = tk.Frame(self)
+        right.grid(row=0, column=1, sticky="nsew", padx=20, pady=20)
+        right.columnconfigure(0, weight=1)
+        right.rowconfigure(0, weight=1)
+        self.label=tk.Label(left,text="Обери генерала  ",font=('Arial',18))
+        self.label.grid(row=0,column=2,columnspan=1,pady=(30,30), padx=(0,100))
+        self.image_label=tk.Label(right)
+        self.image_label.grid(row=0,column=3,columnspan=1)
+        self.text_label=tk.Label(left,text=" ",font="Arial,13",wraplength=400)
+        self.text_label.grid(row=1, column=1, columnspan=2, pady=(0, 20), sticky="nsew")
+        btn_choose=tk.Button(left,text="Обрати Генерала",command=self.choose)
+        btn_choose.grid(row=3,column=0, pady=(10,10))
+        btn_next=tk.Button(left,text="Наступний Генерал",command=self.next)
+        btn_next.grid(row=3,column=1,pady=(10,10))
+        self.show()
+
+    def show(self):
+        gen=self.gen[self.index]
+        img=Image.open(gen['image_path'])
+        img = img.resize((600, 600), Image.LANCZOS)
+        self.photo = ImageTk.PhotoImage(img)
+        self.image_label.config(image=self.photo)
+        self.text_label.config(text=f"{gen['name']}\n\n{gen['descripthion']}")
+
+    def choose(self):
+        chosen = self.gen[self.index]
+        general_name = chosen['name']
+        game_script = r'D:\Husevukidezki\project\project.py'
+        user = self.master.current_user
+        if user is not None:
+            nick = user['nick']
+        else:
+            nick = ""   
+
+        subprocess.Popen([sys.executable,game_script,general_name,nick])
+        self.master.destroy()
+    def next(self):
+        self.index=self.index+1
+        if self.index==3: self.index=0
+        self.show()
 class MainMenu(tk.Frame):
     def __init__(self, master):
         super().__init__(master)
@@ -173,6 +225,7 @@ class StatsFrame(tk.Frame):
                   command=lambda: master.show_frame(MainMenu)).pack(pady=20)
 
     def update_view(self):
+        global user
         user = self.master.current_user
         if user:
             txt = (
@@ -186,7 +239,24 @@ class StatsFrame(tk.Frame):
             txt = "Спочатку авторизуйтеся."
         self.stat_label.config(text=txt)
 
+generals=[
+    
+    {'name':'Глоріус Олексійович',
+    'descripthion':'Веде за собою гільдію сміливих воїнів. Особлива здібність: кожні 10 кроків випускає ПОТУЖНУ бомбу, що взривається хрестом ',
+    'image_path':'project\image_folder\knigts_image.png'
 
+    },
+    {'name':'Демон Матіуасан',
+    'descripthion':'Веде за собою потвор з пекла. Особлива здібність: тричі за гру може підірвати свій випадковий корабель, аби той розлетіся на шмаття та поцілив в 4n клітинок ворога, де n-кількість палуб знищеного корабля',
+    'image_path':'project\image_folder\demon_image.png'
+
+    },
+    {'name':'Денис Підривник',
+    'descripthion':'Веде за собою мерзотників з усіх країн світу. Особлива здібність: коли по коралям Джонса потрапляє ворог, то з імовірність в 50% поцілить в випадкову клітинку ворога',
+    'image_path':'project\image_folder\pirates_image.png'
+
+    }
+]
 if __name__ == '__main__':
     app = BattleshipApp()
     app.mainloop()
